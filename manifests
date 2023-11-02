@@ -1,0 +1,416 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    kompose.cmd: kompose convert -f docker-compose.yml -o manifests
+    kompose.version: 1.31.1 (46dcb9181)
+  creationTimestamp: null
+  labels:
+    io.kompose.service: cast-service
+  name: cast_service
+  namespace: default
+spec:
+  ports:
+    - name: "8002"
+      port: 8002
+      targetPort: 8000
+  selector:
+    io.kompose.service: cast-service
+status:
+  loadBalancer: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    kompose.cmd: kompose convert -f docker-compose.yml -o manifests
+    kompose.version: 1.31.1 (46dcb9181)
+  creationTimestamp: null
+  labels:
+    io.kompose.service: movie-service
+  name: movie_service
+  namespace: default
+spec:
+  ports:
+    - name: "8001"
+      port: 8001
+      targetPort: 8000
+  selector:
+    io.kompose.service: movie-service
+status:
+  loadBalancer: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    kompose.cmd: kompose convert -f docker-compose.yml -o manifests
+    kompose.version: 1.31.1 (46dcb9181)
+  creationTimestamp: null
+  labels:
+    io.kompose.service: nginx
+  name: nginx
+  namespace: default
+spec:
+  ports:
+    - name: "8080"
+      port: 8080
+      targetPort: 8080
+  selector:
+    io.kompose.service: nginx
+status:
+  loadBalancer: {}
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: kompose convert -f docker-compose.yml -o manifests
+    kompose.version: 1.31.1 (46dcb9181)
+  creationTimestamp: null
+  labels:
+    io.kompose.service: cast-db
+  name: cast-db
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: cast-db
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: kompose convert -f docker-compose.yml -o manifests
+        kompose.version: 1.31.1 (46dcb9181)
+      creationTimestamp: null
+      labels:
+        io.kompose.network/jenkins-devops-default: "true"
+        io.kompose.service: cast-db
+    spec:
+      containers:
+        - env:
+            - name: POSTGRES_DB
+              value: cast_db_dev
+            - name: POSTGRES_PASSWORD
+              value: cast_db_password
+            - name: POSTGRES_USER
+              value: cast_db_username
+          image: postgres:12.1-alpine
+          name: cast-db
+          resources: {}
+          volumeMounts:
+            - mountPath: /var/lib/postgresql/data
+              name: postgres-data-cast
+      restartPolicy: Always
+      volumes:
+        - name: postgres-data-cast
+          persistentVolumeClaim:
+            claimName: postgres-data-cast
+status: {}
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  creationTimestamp: null
+  labels:
+    io.kompose.service: postgres-data-cast
+  name: postgres-data-cast
+  namespace: default
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Mi
+status: {}
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: kompose convert -f docker-compose.yml -o manifests
+    kompose.version: 1.31.1 (46dcb9181)
+  creationTimestamp: null
+  labels:
+    io.kompose.service: cast-service
+  name: cast-service
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: cast-service
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: kompose convert -f docker-compose.yml -o manifests
+        kompose.version: 1.31.1 (46dcb9181)
+      creationTimestamp: null
+      labels:
+        io.kompose.network/jenkins-devops-default: "true"
+        io.kompose.service: cast-service
+    spec:
+      containers:
+        - args:
+            - uvicorn
+            - app.main:app
+            - --reload
+            - --host
+            - 0.0.0.0
+            - --port
+            - "8000"
+          env:
+            - name: DATABASE_URI
+              value: postgresql://cast_db_username:cast_db_password@cast_db/cast_db_dev
+          image: cast-service
+          name: cast-service
+          ports:
+            - containerPort: 8000
+              hostPort: 8002
+              protocol: TCP
+          resources: {}
+          volumeMounts:
+            - mountPath: /app
+              name: cast-service-claim0
+      restartPolicy: Always
+      volumes:
+        - name: cast-service-claim0
+          persistentVolumeClaim:
+            claimName: cast-service-claim0
+status: {}
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  creationTimestamp: null
+  labels:
+    io.kompose.service: cast-service-claim0
+  name: cast-service-claim0
+  namespace: default
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Mi
+status: {}
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: kompose convert -f docker-compose.yml -o manifests
+    kompose.version: 1.31.1 (46dcb9181)
+  creationTimestamp: null
+  labels:
+    io.kompose.service: movie-db
+  name: movie-db
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: movie-db
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: kompose convert -f docker-compose.yml -o manifests
+        kompose.version: 1.31.1 (46dcb9181)
+      creationTimestamp: null
+      labels:
+        io.kompose.network/jenkins-devops-default: "true"
+        io.kompose.service: movie-db
+    spec:
+      containers:
+        - env:
+            - name: POSTGRES_DB
+              value: movie_db_dev
+            - name: POSTGRES_PASSWORD
+              value: movie_db_password
+            - name: POSTGRES_USER
+              value: movie_db_username
+          image: postgres:12.1-alpine
+          name: movie-db
+          resources: {}
+          volumeMounts:
+            - mountPath: /var/lib/postgresql/data
+              name: postgres-data-movie
+      restartPolicy: Always
+      volumes:
+        - name: postgres-data-movie
+          persistentVolumeClaim:
+            claimName: postgres-data-movie
+status: {}
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  creationTimestamp: null
+  labels:
+    io.kompose.service: postgres-data-movie
+  name: postgres-data-movie
+  namespace: default
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Mi
+status: {}
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: kompose convert -f docker-compose.yml -o manifests
+    kompose.version: 1.31.1 (46dcb9181)
+  creationTimestamp: null
+  labels:
+    io.kompose.service: movie-service
+  name: movie-service
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: movie-service
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: kompose convert -f docker-compose.yml -o manifests
+        kompose.version: 1.31.1 (46dcb9181)
+      creationTimestamp: null
+      labels:
+        io.kompose.network/jenkins-devops-default: "true"
+        io.kompose.service: movie-service
+    spec:
+      containers:
+        - args:
+            - uvicorn
+            - app.main:app
+            - --reload
+            - --host
+            - 0.0.0.0
+            - --port
+            - "8000"
+          env:
+            - name: CAST_SERVICE_HOST_URL
+              value: http://cast_service:8000/api/v1/casts/
+            - name: DATABASE_URI
+              value: postgresql://movie_db_username:movie_db_password@movie_db/movie_db_dev
+          image: movie-service
+          name: movie-service
+          ports:
+            - containerPort: 8000
+              hostPort: 8001
+              protocol: TCP
+          resources: {}
+          volumeMounts:
+            - mountPath: /app
+              name: movie-service-claim0
+      restartPolicy: Always
+      volumes:
+        - name: movie-service-claim0
+          persistentVolumeClaim:
+            claimName: movie-service-claim0
+status: {}
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  creationTimestamp: null
+  labels:
+    io.kompose.service: movie-service-claim0
+  name: movie-service-claim0
+  namespace: default
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Mi
+status: {}
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: kompose convert -f docker-compose.yml -o manifests
+    kompose.version: 1.31.1 (46dcb9181)
+  creationTimestamp: null
+  labels:
+    io.kompose.service: nginx
+  name: nginx
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: nginx
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: kompose convert -f docker-compose.yml -o manifests
+        kompose.version: 1.31.1 (46dcb9181)
+      creationTimestamp: null
+      labels:
+        io.kompose.network/jenkins-devops-default: "true"
+        io.kompose.service: nginx
+    spec:
+      containers:
+        - image: nginx:latest
+          name: nginx
+          ports:
+            - containerPort: 8080
+              hostPort: 8080
+              protocol: TCP
+          resources: {}
+          volumeMounts:
+            - mountPath: /etc/nginx/conf.d/default.conf
+              name: nginx-claim0
+      restartPolicy: Always
+      volumes:
+        - name: nginx-claim0
+          persistentVolumeClaim:
+            claimName: nginx-claim0
+status: {}
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  creationTimestamp: null
+  labels:
+    io.kompose.service: nginx-claim0
+  name: nginx-claim0
+  namespace: default
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Mi
+status: {}
+
