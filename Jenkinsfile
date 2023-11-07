@@ -88,7 +88,7 @@ pipeline {
                     input message: 'Do you want to deploy in production ?', ok: 'Yes'
                 }
                 script {
-                    if (env.BRANCH_NAME = "master") {
+                    if (env.BRANCH_NAME == "master") {
                         sh "helm upgrade --install jenkins-prod ./jenkins-charts --namespace prod --values ./jenkins-charts/values-prod.yaml --set image.tag=${env.BUILD_NUMBER}"
                     }
                 }
