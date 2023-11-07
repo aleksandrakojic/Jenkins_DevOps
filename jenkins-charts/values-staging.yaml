@@ -1,0 +1,12 @@
+global:
+  environment: staging
+  namespace: staging
+  tag: latest
+
+
+castService:
+  pvcSize: 5Gi
+movieService:
+  pvcSize: 5Gi
+nginx:
+  pvcSize: 5Gi

@@ -1,0 +1,57 @@
+# values-dev.yaml
+global:
+  namespace: dev
+
+movieService:
+  image: "underdogdevops/movie-service"
+  tag: "dev"
+  port: 8000
+  environment:
+    DATABASE_URI: "postgresql://movie_db_username:movie_db_password@movie-db-dev/movie_db_dev"
+    CAST_SERVICE_HOST_URL: "http://cast-service:8000/api/v1/casts/"
+
+movieDB:
+  user: "movie_db_username"
+  password: "movie_db_password"
+  dbName: "movie_db_dev"
+  volume:
+    size: "1Gi"
+
+castService:
+  image: "underdogdevops/cast-service"
+  tag: "dev"
+  port: 8000
+  environment:
+    DATABASE_URI: "postgresql://cast_db_username:cast_db_password@cast-db-dev/cast_db_dev"
+
+castDB:
+  user: "cast_db_username"
+  password: "cast_db_password"
+  dbName: "cast_db_dev"
+  volume:
+    size: "1Gi"
+
+nginx:
+  image: "nginx"
+  tag: "latest"
+  port: 8080
+  config:
+    defaultConf: |-
+      server {
+        listen 8080;
+
+        location /api/v1/movies {
+          proxy_pass http://movie-service:8000/api/v1/movies;
+        }
+
+        location /api/v1/casts {
+          proxy_pass http://cast-service:8000/api/v1/casts;
+        }
+      }
+
+
+volumes:
+  movieData:
+    size: "2Gi"
+  castData:
+    size: "2Gi"

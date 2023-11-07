@@ -1,122 +1,86 @@
 pipeline {
-    environment { 
-    DOCKER_ID = "underdogdevops" 
-    DOCKER_IMAGE = "datascientestapi"
-    DOCKER_TAG = "v.${BUILD_ID}.0" 
-}
-		agent any 
-		stages {
-        stage(' Docker Build'){ 
-					steps {
-						script {
-						sh '''
-							docker rm -f jenkins
-							docker build -t $DOCKER_ID/$DOCKER_IMAGE:$DOCKER_TAG .
-							sleep 6
-							'''
-						}
-					}
+    agent any
+    environment {
+        DOCKERHUB_CREDENTIALS = credentials('docker-hub-credentials')
+        CAST_IMAGE = "underdogdevops/cast-service"
+        MOVIE_IMAGE = "underdogdevops/movie-service"
+    }
+    stages {
+        stage('Checkout code') {
+            steps {
+                checkout scm
+            }
+        }        
+        stage('Build and push images') {
+            when {
+                anyOf {
+                    branch 'dev'
+                    branch 'qa'
+                    branch 'staging'
+                    branch 'prod'
+                }
+            }
+            steps {
+                script {
+                    def dockerTag = ""
+                    if (env.BRANCH_NAME == 'dev') {
+                        dockerTag = "dev"
+                    } else if (env.BRANCH_NAME == 'qa') {
+                        dockerTag = "qa"
+                    } else if (env.BRANCH_NAME == 'staging') {
+                        dockerTag = "staging"
+                    } else if (env.BRANCH_NAME == 'prod') {
+                        dockerTag = "latest"
+                    }
+                    docker.withRegistry('https://registry.hub.docker.com', "${DOCKERHUB_CREDENTIALS}") {
+                        // Build and push movie-service image
+                        def movieService = docker.build("${MOVIE_IMAGE}:${dockerTag}", "./movie-service")
+                        movieService.push()
+
+                        // Build and push cast-service image
+                        def castService = docker.build("${CAST_IMAGE}:${dockerTag}", "./cast-service")
+                        castService.push()
+                    }
+                }
+            }
         }
-        stage('Docker run'){ // run container from our builded image
-					steps {
-						script {
-							sh '''
-							docker run -d -p 80:80 --name jenkins $DOCKER_ID/$DOCKER_IMAGE:$DOCKER_TAG
-							sleep 10
-							'''
-						}
-					}
-			}
+        stage('Deploy to Environments') {
+            steps {
+                script {
+                    def namespace = ""
+                    def valuesFile = ""
+                    
+                    switch (env.BRANCH_NAME) {
+                        case "dev":
+                            namespace = "dev"
+                            valuesFile = "values-dev.yaml"
+                            break
+                        case "qa":
+                            namespace = "qa"
+                            valuesFile = "values-qa.yaml"
+                            break
+                        case "staging":
+                            namespace = "staging"
+                            valuesFile = "values-staging.yaml"
+                            break
+                        case "master":
+                            namespace = "prod"
+                            valuesFile = "values-prod.yaml"
+                            break
+                    }
 
-        stage('Test Acceptance'){ // we launch the curl command to validate that the container responds to the request
-					steps {
-						script {
-							sh '''
-							curl localhost
-							'''
-						}
-					}
-
+                    if (namespace && valuesFile) {
+                        // Deploy cast service
+                        sh "helm upgrade --install jenkins-${namespace} ./jenkins-charts --namespace ${namespace} --values ./jenkins-charts/${valuesFile} --set image.tag=${env.BUILD_NUMBER}"
+                    }
+                }
+            }
         }
-        stage('Docker Push'){ //we pass the built image to our docker hub account
-					environment
-					{
-						DOCKER_PASS = credentials("DOCKER_HUB_PASS") // we retrieve  docker password from secret text called docker_hub_pass saved on jenkins
-					}
-					steps {
-						script {
-						sh '''
-						docker login -u $DOCKER_ID -p $DOCKER_PASS
-						docker push $DOCKER_ID/$DOCKER_IMAGE:$DOCKER_TAG
-						'''
-						}
-					}
+    }
+    post {
+        always {
+            echo 'The pipeline has finished.'
+            cleanWs() 
         }
-
-	stage('Deploiement en dev'){
-		environment
-		{
-			KUBECONFIG = credentials("config") // we retrieve  kubeconfig from secret file called config saved on jenkins
-		}
-			steps {
-				script {
-					sh '''
-					rm -Rf .kube
-					mkdir .kube
-					ls
-					cat $KUBECONFIG > .kube/config
-					cp fastapi/values.yaml values.yml
-					cat values.yml
-					sed -i "s+tag.*+tag: ${DOCKER_TAG}+g" values.yml
-					helm upgrade --install app fastapi --values=values.yml --namespace dev
-					'''
-				}
-			}
-
-	}
-	stage('Deploiement en staging'){
-		environment	{
-				KUBECONFIG = credentials("config") // we retrieve  kubeconfig from secret file called config saved on jenkins
-			}
-			steps {
-				script {
-					sh '''
-					rm -Rf .kube
-					mkdir .kube
-					ls
-					cat $KUBECONFIG > .kube/config
-					cp fastapi/values.yaml values.yml
-					cat values.yml
-					sed -i "s+tag.*+tag: ${DOCKER_TAG}+g" values.yml
-					helm upgrade --install app fastapi --values=values.yml --namespace staging
-					'''
-				}
-			}
-		}
-  	stage('Deploiement en prod'){
-      environment {
-        KUBECONFIG = credentials("config") // we retrieve  kubeconfig from secret file called config saved on jenkins
-      }
-				steps {
-				// Create an Approval Button with a timeout of 15minutes.
-				// this require a manuel validation in order to deploy on production environment
-								timeout(time: 15, unit: "MINUTES") {
-										input message: 'Do you want to deploy in production ?', ok: 'Yes'
-								}
-
-						script {
-						sh '''
-						rm -Rf .kube
-						mkdir .kube
-						ls
-						cat $KUBECONFIG > .kube/config
-						cp fastapi/values.yaml values.yml
-						cat values.yml
-						sed -i "s+tag.*+tag: ${DOCKER_TAG}+g" values.yml
-						helm upgrade --install app fastapi --values=values.yml --namespace prod
-						'''
-						}
-				}
-		}
-	}
+    }
 }

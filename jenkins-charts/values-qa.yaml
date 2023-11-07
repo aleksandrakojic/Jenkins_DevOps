@@ -1,0 +1,12 @@
+global:
+  environment: qa
+  namespace: qa
+  tag: latest
+
+
+castService:
+  pvcSize: 2Gi
+movieService:
+  pvcSize: 2Gi
+nginx:
+  pvcSize: 2Gi
