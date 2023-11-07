@@ -22,7 +22,7 @@ pipeline {
             }
             steps {
                 script {
-                    def dockerTag = BRANCH_NAME == 'master' ? 'latest' : BRANCH_NAME
+                    def dockerTag = env.BRANCH_NAME == 'master' ? 'latest' : env.BRANCH_NAME
                     // Log in to Docker Hub
                     sh '''
                     docker build -t ${MOVIE_IMAGE}:${dockerTag} ./movie-service/Dockerfile
@@ -48,10 +48,10 @@ pipeline {
             }
             steps {
                 script {
-                    def helmReleaseName = "jenkins-${BRANCH_NAME}"
-                    def valuesFile = "values-${BRANCH_NAME}.yaml"
+                    def helmReleaseName = "jenkins-${env.BRANCH_NAME}"
+                    def valuesFile = "values-${env.BRANCH_NAME}.yaml"
                     // Deploy to respective namespace based on branch name
-                    sh "helm upgrade --install ${helmReleaseName} ./jenkins-charts --namespace ${BRANCH_NAME} --values ./jenkins-charts/${valuesFile} --set image.tag=${env.BUILD_NUMBER}"
+                    sh "helm upgrade --install ${helmReleaseName} ./jenkins-charts --namespace ${env.BRANCH_NAME} --values ./jenkins-charts/${valuesFile} --set image.tag=${env.BUILD_NUMBER}"
                 }
             }
         }
