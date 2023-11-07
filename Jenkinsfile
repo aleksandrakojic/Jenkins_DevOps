@@ -33,13 +33,16 @@ pipeline {
                         dockerTag = "latest"
                     }
                     docker.withRegistry('https://registry.hub.docker.com', "${DOCKERHUB_CREDENTIALS}") {
+                        echo 'Starting in Docker.'
                         // Build and push movie-service image
                         def movieService = docker.build("${MOVIE_IMAGE}:${dockerTag}", "./movie-service")
                         movieService.push()
+                        echo 'Pushed movie service to Docker.'
 
                         // Build and push cast-service image
                         def castService = docker.build("${CAST_IMAGE}:${dockerTag}", "./cast-service")
                         castService.push()
+                        echo 'Pushed cast service to Docker.'
                     }
                 }
             }
