@@ -10,87 +10,62 @@ pipeline {
             steps {
                 checkout scm
             }
-        }        
+        }
         stage('Build and push images') {
             when {
                 anyOf {
                     branch 'dev'
                     branch 'qa'
                     branch 'staging'
-                    branch 'master'
+                    branch 'master' 
                 }
             }
             steps {
                 script {
-                    def dockerTag = ""
-                    if (env.BRANCH_NAME == 'dev') {
-                        dockerTag = "dev"
-                    } else if (env.BRANCH_NAME == 'qa') {
-                        dockerTag = "qa"
-                    } else if (env.BRANCH_NAME == 'staging') {
-                        dockerTag = "staging"
-                    } else if (env.BRANCH_NAME == 'master') {
-                        dockerTag = "latest"
-                    }
-                    docker.withRegistry('https://registry.hub.docker.com', "${DOCKERHUB_CREDENTIALS}") {
-                        echo 'Starting in Docker.'
-                        // Build and push movie-service image
-                        def movieService = docker.build("${MOVIE_IMAGE}:${dockerTag}", "./movie-service")
-                        sleep 6
-                        movieService.push()
-                        echo 'Pushed movie service to Docker.'
-                        sleep 6
+                    def dockerTag = BRANCH_NAME == 'master' ? 'latest' : BRANCH_NAME
+                    // Log in to Docker Hub
+                    sh '''
+                    docker build -t ${MOVIE_IMAGE}:${dockerTag} ./movie-service/Dockerfile
+                    docker build -t ${CAST_IMAGE}:${dockerTag} ./cast-service/Dockerfile
+                    sleep 10
 
-                        // Build and push cast-service image
-                        def castService = docker.build("${CAST_IMAGE}:${dockerTag}", "./cast-service")
-                        sleep 6
-                        castService.push()
-                        echo 'Pushed cast service to Docker.'
-                        sleep 6
-                    }
+                    docker login -u underdogdevops -p $DOCKERHUB_CREDENTIALS
+                    sleep 5
+                    
+                    docker push ${MOVIE_IMAGE}:${dockerTag}
+                    docker push ${CAST_IMAGE}:${dockerTag}
+                    '''
                 }
             }
         }
         stage('Deploy to Environments') {
+            when {
+                anyOf {
+                    branch 'dev'
+                    branch 'qa'
+                    branch 'staging'
+                }
+            }
             steps {
                 script {
-                    def namespace = ""
-                    def valuesFile = ""
-                    
-                    switch (env.BRANCH_NAME) {
-                        case "dev":
-                            namespace = "dev"
-                            valuesFile = "values-dev.yaml"
-                            break
-                        case "qa":
-                            namespace = "qa"
-                            valuesFile = "values-qa.yaml"
-                            break
-                        case "staging":
-                            namespace = "staging"
-                            valuesFile = "values-staging.yaml"
-                            break
-                    }
-
-                    if (namespace && valuesFile) {
-                        // Deploy cast service
-                        sh "helm upgrade --install jenkins-${namespace} ./jenkins-charts --namespace ${namespace} --values ./jenkins-charts/${valuesFile} --set image.tag=${env.BUILD_NUMBER}"
-                    }
+                    def helmReleaseName = "jenkins-${BRANCH_NAME}"
+                    def valuesFile = "values-${BRANCH_NAME}.yaml"
+                    // Deploy to respective namespace based on branch name
+                    sh "helm upgrade --install ${helmReleaseName} ./jenkins-charts --namespace ${BRANCH_NAME} --values ./jenkins-charts/${valuesFile} --set image.tag=${env.BUILD_NUMBER}"
                 }
             }
         }
         stage('Deployment to Production') {
             when {
-                branch 'master'
+                branch 'master' // or 'main' depending on your main branch name
             }
             steps {
                 timeout(time: 5, unit: "MINUTES") {
-                    input message: 'Do you want to deploy in production ?', ok: 'Yes'
+                    input message: 'Do you want to deploy to production?', ok: 'Yes'
                 }
                 script {
-                    if (env.BRANCH_NAME == "master") {
-                        sh "helm upgrade --install jenkins-prod ./jenkins-charts --namespace prod --values ./jenkins-charts/values-prod.yaml --set image.tag=${env.BUILD_NUMBER}"
-                    }
+                    // Deploy to production
+                    sh "helm upgrade --install jenkins-prod ./jenkins-charts --namespace prod --values ./jenkins-charts/values-prod.yaml --set image.tag=${env.BUILD_NUMBER}"
                 }
             }
         }
@@ -98,7 +73,10 @@ pipeline {
     post {
         always {
             echo 'The pipeline has finished.'
-            cleanWs() 
+            cleanWs() // Cleans the workspace
+        }
+        failure {
+            echo 'The pipeline failed!'
         }
     }
 }
