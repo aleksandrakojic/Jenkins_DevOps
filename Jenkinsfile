@@ -48,6 +48,17 @@ pipeline {
                 }
             }
         }
+        stage('Install Helm') {            
+            steps {
+                script {
+                    // Install Helm
+                    sh "curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3"
+                    sh "chmod 700 get_helm.sh"
+                    sh "./get_helm.sh"
+                    sh "echo helm version --client"
+                }
+            }
+        }
         stage('Deploy to Environments') {
             when {
                 anyOf {
@@ -71,7 +82,7 @@ pipeline {
             }
             steps {
                 timeout(time: 5, unit: "MINUTES") {
-                    input message: 'Do you want to deploy to production?', ok: 'Deploy'
+                    input message: 'Do you want to deploy to production?', ok: 'Yes'
                 }
                 script {
                     // Helm upgrade/install for production
