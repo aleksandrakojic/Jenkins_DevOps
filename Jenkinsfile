@@ -48,15 +48,13 @@ pipeline {
                 }
             }
         }
-        stage('Install Helm') {            
-            steps {
-                script {
-                    // Install Helm
-                    sh "curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3"
-                    sh "chmod 700 get_helm.sh"
-                    sh "./get_helm.sh"
-                    sh "echo helm version --client"
-                }
+        stage("install helm"){
+            steps{
+                sh 'wget https://get.helm.sh/helm-v3.6.1-linux-amd64.tar.gz'
+                sh 'ls -a'
+                sh 'tar -xvzf helm-v3.6.1-linux-amd64.tar.gz'
+                sh 'sudo cp linux-amd64/helm /usr/bin'
+                sh 'helm version'
             }
         }
         stage('Deploy to Environments') {
