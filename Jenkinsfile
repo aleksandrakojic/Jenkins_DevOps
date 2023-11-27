@@ -94,7 +94,6 @@ pipeline {
     CAST_IMAGE = 'underdogdevops/cast-service'
     MOVIE_IMAGE = 'underdogdevops/movie-service'
     DOCKER_USERNAME = 'underdogdevops'
-    DOCKER_CREDENTIALS = 'docker-hub-credentials'
   }
   post {
     always {
