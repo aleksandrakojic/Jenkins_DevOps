@@ -1,0 +1,13 @@
+global:
+  environment: prod
+  namespace: prod
+  tag: latest
+
+
+castService:
+  pvcSize: 10Gi
+movieService:
+  pvcSize: 10Gi
+nginx:
+  image: nginx:latest
+  pvcSize: 10Gi

@@ -1,0 +1,43 @@
+movieService:
+  image: "underdogdevops/movie-service"
+  tag: "latest"
+  port: 8000
+
+castService:
+  image: "underdogdevops/cast-service"
+  tag: "latest"
+  port: 8000
+
+movieDB:
+  image: "postgres:12.1-alpine"
+  port: 5432
+  user: "movie_db_username"
+  password: "movie_db_password"
+  dbName: "movie_db_dev"
+  volume:
+    size: "1Gi"
+
+castDB:
+  image: "postgres:12.1-alpine"
+  port: 5432
+  user: "cast_db_username"
+  password: "cast_db_password"
+  dbName: "cast_db_dev"
+  volume:
+    size: "1Gi"
+
+nginx:
+  image: "nginx:latest"
+  port: 8080
+  config: |
+    server {
+      listen 8080;
+
+      location /api/v1/movies {
+        proxy_pass http://movie-service:8000/api/v1/movies;
+      }
+
+      location /api/v1/casts {
+        proxy_pass http://cast-service:8000/api/v1/casts;
+      }
+    }

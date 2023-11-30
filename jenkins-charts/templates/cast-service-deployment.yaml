@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cast-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cast-service
+  template:
+    metadata:
+      labels:
+        app: cast-service
+    spec:
+      containers:
+      - name: cast-service
+        image: "{{ .Values.castService.image }}:{{ .Values.castService.tag }}"
+        ports:
+        - containerPort: {{ .Values.castService.port }}
+        env:
+        - name: DATABASE_URI
+          value: "postgresql://{{ .Values.castDB.user }}:{{ .Values.castDB.password }}@cast-db/{{ .Values.castDB.dbName }}"
