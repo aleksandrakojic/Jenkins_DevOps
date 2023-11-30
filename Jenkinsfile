@@ -29,7 +29,7 @@ pipeline {
                     def dockerTag = env.BRANCH_NAME == 'master' ? 'latest' : env.BRANCH_NAME
 
                     // Docker login
-                    sh "echo ${env.DOCKER_CREDENTIALS_PSW} | docker login -u ${env.DOCKER_CREDENTIALS_USR} --password-stdin"
+                    sh "echo ${DOCKER_CREDENTIALS} | docker login -u ${DOCKER_USERNAME} --password-stdin"
 
                     // Parallel building and pushing of images
                     parallel(
