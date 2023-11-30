@@ -2,7 +2,7 @@ pipeline {
     agent any
     environment {
         // Credentials
-        DOCKER_PASS = credentials('DOCKER_HUB_PASS') 
+        DOCKER_CREDENTIALS = credentials('DOCKER_HUB_PASS') 
         // Image repositories
         CAST_IMAGE = "underdogdevops/cast-service"
         MOVIE_IMAGE = "underdogdevops/movie-service"
@@ -29,7 +29,7 @@ pipeline {
                     def dockerTag = env.BRANCH_NAME == 'master' ? 'latest' : env.BRANCH_NAME
 
                     // Docker login
-                    sh "docker login -u ${DOCKER_USERNAME} -p ${DOCKER_PASS}"
+                    sh "echo ${env.DOCKER_CREDENTIALS_PSW} | docker login -u ${env.DOCKER_CREDENTIALS_USR} --password-stdin"
 
                     // Parallel building and pushing of images
                     parallel(
