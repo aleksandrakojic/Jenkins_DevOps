@@ -30,18 +30,11 @@ pipeline {
 
                     // Docker login
                     sh "docker login -u ${DOCKER_USERNAME} -p ${DOCKER_CREDENTIALS}"
+                    sh "docker build -t ${env.MOVIE_IMAGE}:${dockerTag} -f ./movie-service/Dockerfile ./movie-service"
+                    sh "docker push ${env.MOVIE_IMAGE}:${dockerTag}"
 
-                    // Parallel building and pushing of images
-                    parallel(
-                        buildAndPushMovieService: {
-                            sh "docker build -t ${env.MOVIE_IMAGE}:${dockerTag} -f ./movie-service/Dockerfile ./movie-service"
-                            sh "docker push ${env.MOVIE_IMAGE}:${dockerTag}"
-                        },
-                        buildAndPushCastService: {
-                            sh "docker build -t ${env.CAST_IMAGE}:${dockerTag} -f ./cast-service/Dockerfile ./cast-service"
-                            sh "docker push ${env.CAST_IMAGE}:${dockerTag}"
-                        }
-                    )
+                    sh "docker build -t ${env.CAST_IMAGE}:${dockerTag} -f ./cast-service/Dockerfile ./cast-service"
+                    sh "docker push ${env.CAST_IMAGE}:${dockerTag}"
 
                     // Docker logout
                     sh "docker logout"
