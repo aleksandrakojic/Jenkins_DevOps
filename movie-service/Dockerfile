@@ -6,7 +6,6 @@ COPY ./requirements.txt /app/requirements.txt
 
 RUN apt-get update \
     && apt-get upgrade -y \
-    && apt install build-essential \
     && apt-get install gcc -y \
     && apt-get clean
 
